@@ -1,0 +1,86 @@
+/* Design tokens. Everything visual in the admin reads from these. */
+:root {
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 10px;
+  --r-sm: 6px;
+  /* control scale: every button, select, input and segmented control uses one of these three heights */
+  --h-md: 36px;
+  --h-sm: 32px;
+  --h-xs: 28px;
+  --r-ctl: 8px;
+  --ctl-font: 13px;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238791a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --sidebar: 232px;
+  --topbar: 56px;
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e2e5ea;
+  --border-strong: #cdd2da;
+  --text: #171a1f;
+  --text-2: #566070;
+  --text-3: #8791a0;
+  --accent: #3b5bdb;
+  --accent-hover: #2f4cc4;
+  --accent-ink: #ffffff;
+  --accent-soft: #e9edff;
+  --ok: #1a7f37;
+  --ok-soft: #e2f5e7;
+  --warn: #8a5a00;
+  --warn-soft: #fff3d1;
+  --danger: #cf222e;
+  --danger-soft: #ffe9eb;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 6px 16px rgba(16, 24, 40, .06);
+  --checker: repeating-conic-gradient(#9994 0 25%, #0000 0 50%) 0 0 / 16px 16px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #101216;
+  --surface: #181b21;
+  --surface-2: #20242b;
+  --border: #2a2f38;
+  --border-strong: #3a414c;
+  --text: #e8eaee;
+  --text-2: #a2abb9;
+  --text-3: #6f7a8a;
+  --accent: #6c8cff;
+  --accent-hover: #86a0ff;
+  --accent-ink: #0c1020;
+  --accent-soft: #1f2745;
+  --ok: #4cc26d;
+  --ok-soft: #15301d;
+  --warn: #e7b04a;
+  --warn-soft: #33290f;
+  --danger: #ff6b76;
+  --danger-soft: #3a1a1e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101216;
+    --surface: #181b21;
+    --surface-2: #20242b;
+    --border: #2a2f38;
+    --border-strong: #3a414c;
+    --text: #e8eaee;
+    --text-2: #a2abb9;
+    --text-3: #6f7a8a;
+    --accent: #6c8cff;
+    --accent-hover: #86a0ff;
+    --accent-ink: #0c1020;
+    --accent-soft: #1f2745;
+    --ok: #4cc26d;
+    --ok-soft: #15301d;
+    --warn: #e7b04a;
+    --warn-soft: #33290f;
+    --danger: #ff6b76;
+    --danger-soft: #3a1a1e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}

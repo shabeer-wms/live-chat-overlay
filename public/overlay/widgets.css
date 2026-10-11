@@ -1,0 +1,62 @@
+/* On-stream widgets. They take colours, radius and font from the chosen design (CSS variables set by overlay.html). */
+#widgets { position: fixed; inset: 0; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 24px; pointer-events: none; z-index: 5; box-sizing: border-box; }
+#widgets .cell { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+#widgets .cell.c1 { align-items: flex-start; } #widgets .cell.c2 { align-items: center; } #widgets .cell.c3 { align-items: flex-end; }
+#widgets .cell.r1 { justify-content: flex-start; } #widgets .cell.r2 { justify-content: center; } #widgets .cell.r3 { justify-content: flex-end; }
+
+.w { --w-font: 22px; font-size: var(--w-font); line-height: 1.3; background: var(--bg, rgba(0,0,0,.6)); color: inherit; border-radius: var(--radius, 12px); padding: .7em .9em; width: min(26em, 100%); box-sizing: border-box; box-shadow: 0 8px 26px rgba(0,0,0,.35); will-change: transform, opacity; }
+.w h4 { margin: 0 0 .45em; font-size: .8em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.w .big { font-weight: 800; font-size: 1.15em; overflow-wrap: anywhere; }
+.w .sub { font-size: .78em; opacity: .8; margin-top: .25em; }
+.w .accent { color: var(--name, #ffd54a); }
+.w .bar { position: relative; height: .7em; border-radius: 99px; background: rgba(255,255,255,.16); overflow: hidden; margin-top: .3em; }
+.w .bar > i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--name, #ffd54a); border-radius: inherit; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+
+/* poll */
+.w.poll .opt { margin-top: .55em; }
+.w.poll .opt .row { display: flex; justify-content: space-between; gap: .6em; font-weight: 600; }
+.w.poll .opt .row b { font-variant-numeric: tabular-nums; }
+.w.poll .opt.lead .row span:first-child::after { content: ' ★'; color: var(--name, #ffd54a); }
+.w.poll .key { display: inline-block; min-width: 1.4em; text-align: center; margin-right: .4em; padding: 0 .3em; border-radius: .35em; background: rgba(255,255,255,.18); font-size: .85em; }
+
+/* goal */
+.w.goal .nums { display: flex; justify-content: space-between; font-weight: 700; }
+.w.goal .sup { margin-top: .5em; font-size: .78em; opacity: .9; }
+
+/* timer */
+.w.timer { text-align: center; width: auto; min-width: 8em; }
+.w.timer .clock { font-size: 2.2em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.w.timer.done .clock { color: #ff5252; animation: blink .8s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+
+/* leaderboard */
+.w.lb ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35em; }
+.w.lb li { display: flex; align-items: center; gap: .55em; }
+.w.lb .rank { width: 1.3em; text-align: center; font-weight: 800; opacity: .75; }
+.w.lb img { width: 1.5em; height: 1.5em; border-radius: 50%; object-fit: cover; }
+.w.lb .who { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.w.lb .n { font-variant-numeric: tabular-nums; opacity: .85; }
+
+/* word cloud */
+.w.cloud { width: min(30em, 100%); }
+.w.cloud .words { display: flex; flex-wrap: wrap; gap: .1em .55em; align-items: baseline; justify-content: center; }
+.w.cloud .words span { font-weight: 800; line-height: 1.05; transition: font-size .5s; }
+
+/* giveaway */
+.w.give { text-align: center; width: min(30em, 100%); }
+.w.give .kw { display: inline-block; margin: .15em .1em; padding: .1em .55em; border-radius: .45em; background: rgba(255,255,255,.18); font-weight: 800; }
+.w.give .roll { font-size: 1.5em; font-weight: 800; min-height: 1.4em; }
+.w.give .win { display: flex; align-items: center; gap: .6em; padding: .45em .6em; margin-top: .4em; border-radius: .6em; background: rgba(255,255,255,.12); text-align: left; }
+.w.give .win img { width: 2.2em; height: 2.2em; border-radius: 50%; object-fit: cover; }
+.w.give .win .nm { flex: 1; font-weight: 800; font-size: 1.1em; overflow-wrap: anywhere; }
+.w.give .win.noshow { opacity: .45; text-decoration: line-through; }
+.w.give .win .st { font-size: .7em; font-weight: 700; padding: .1em .5em; border-radius: 99px; background: rgba(255,255,255,.2); white-space: nowrap; }
+.w.give .win.claimed .st { background: #2e7d32; }
+.w.give .runners { margin-top: .6em; font-size: .75em; opacity: .8; }
+
+/* alerts */
+.w.alert { text-align: center; width: min(28em, 100%); border: .12em solid var(--alert, #1e88e5); }
+.w.alert .amt { display: inline-block; font-weight: 800; font-size: 1.1em; padding: .05em .6em; border-radius: 99px; background: var(--alert, #1e88e5); color: #fff; margin-bottom: .25em; }
+.w.alert .who { font-weight: 800; }
+.w.alert .msg2 { margin-top: .2em; opacity: .95; overflow-wrap: anywhere; }
+.w.alert img { height: 4em; margin-top: .3em; }

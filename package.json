@@ -1,0 +1,117 @@
+{
+  "name": "live-chat-overlay",
+  "version": "1.0.0",
+  "description": "YouTube + Facebook live comments as an OBS browser-source overlay, with an admin panel",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test.js && node test-features.js",
+    "app": "electron .",
+    "smoke": "electron . --smoke-test",
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "icon": "node scripts/make-icon.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "youtube-chat": "^2.2.0"
+  },
+  "author": {
+    "name": "Chat Overlay",
+    "email": "noreply@example.com"
+  },
+  "homepage": "https://example.com/chat-overlay",
+  "build": {
+    "appId": "com.chatoverlay.app",
+    "productName": "Chat Overlay",
+    "asar": true,
+    "artifactName": "ChatOverlay-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "server.js",
+      "src/**",
+      "public/**",
+      "package.json",
+      "!**/*.md"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "identity": null,
+      "category": "public.app-category.video"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "ChatOverlay-Setup-${version}-${os}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "maintainer": "Chat Overlay <noreply@example.com>",
+      "synopsis": "YouTube and Facebook live chat overlay for OBS",
+      "executableName": "chat-overlay"
+    },
+    "portable": {
+      "artifactName": "ChatOverlay-${version}-${os}-${arch}-portable.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}

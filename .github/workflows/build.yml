@@ -1,0 +1,114 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Builds are unsigned: never try to find a signing identity.
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  package:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Host platform's targets from package.json "build" (mac: arm64 + x64 on this one runner).
+      - name: Build installers
+        run: npx electron-builder --publish never
+
+      # ---- smoke-test the packaged app (boots the server, hits /admin, /overlay, login) ----
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD 'smoke.txt'
+          $p = Start-Process -FilePath 'dist/win-unpacked/Chat Overlay.exe' -ArgumentList '--smoke-test', '--smoke-out', "`"$out`"" -Wait -PassThru
+          if (Test-Path $out) { Get-Content $out }
+          if ($p.ExitCode -ne 0 -or -not (Test-Path $out) -or -not (Select-String -Path $out -Pattern 'SMOKE OK' -Quiet)) { exit 1 }
+
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        # --no-sandbox: the unpacked build has no setuid chrome-sandbox helper, and
+        # Ubuntu 24.04 blocks unprivileged user namespaces.
+        run: |
+          command -v xvfb-run >/dev/null || sudo apt-get install -y xvfb
+          xvfb-run -a dist/linux-unpacked/chat-overlay --no-sandbox --smoke-test --smoke-out "$PWD/smoke.txt"
+          cat smoke.txt
+          grep -q 'SMOKE OK' smoke.txt
+
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        # the runner is arm64; the x64 build in dist/mac is only built, not run
+        run: |
+          "dist/mac-arm64/Chat Overlay.app/Contents/MacOS/Chat Overlay" --smoke-test --smoke-out "$PWD/smoke.txt"
+          cat smoke.txt
+          grep -q 'SMOKE OK' smoke.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: release
+
+      - name: Checksums
+        working-directory: release
+        run: |
+          sha256sum * > ../SHA256SUMS.txt
+          mv ../SHA256SUMS.txt .
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

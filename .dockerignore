@@ -1,0 +1,15 @@
+node_modules
+data
+dist
+out
+build
+electron
+scripts
+docs
+.github
+.claude
+.git
+test.js
+*.md
+Dockerfile
+docker-compose.yml

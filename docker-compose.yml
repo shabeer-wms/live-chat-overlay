@@ -1,0 +1,13 @@
+services:
+  chat-overlay:
+    build: .
+    restart: unless-stopped
+    ports:
+      # Local only by default. To reach it from other machines (e.g. OBS on another PC)
+      # change to "3000:3000" - and change the default PIN (123456) in Settings first.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - chat-overlay-data:/data
+
+volumes:
+  chat-overlay-data:

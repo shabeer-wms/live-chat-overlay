@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chat overlay</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #list { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; box-sizing: border-box; transition: opacity .35s, transform .35s; }
+  #list.bottom { bottom: 0; }
+  #list.top { top: 0; }
+  #list.chat-hidden { opacity: 0; transform: translateY(10px); pointer-events: none; }
+  .msg { display: flex; align-items: center; gap: 10px; padding: 8px 14px; max-width: var(--maxw, 100%); box-sizing: border-box; will-change: transform, opacity; }
+  .avatar { width: 1.6em; height: 1.6em; border-radius: 50%; flex: none; object-fit: cover; }
+  .name { font-weight: 700; margin-right: .4em; }
+  .body { line-height: 1.3; overflow-wrap: anywhere; min-width: 0; }
+  .body img { height: 1.2em; vertical-align: middle; }
+  .logo { height: 1.05em; width: auto; vertical-align: middle; margin-right: .55em; position: relative; top: -.06em; }
+  .badge { font-size: .6em; opacity: .8; margin-right: .4em; }
+  .time { font-size: .6em; opacity: .65; margin-left: .55em; font-variant-numeric: tabular-nums; }
+
+  /* how each message is arranged (Design → Message layout) */
+  .who, .said { display: inline; }
+  #list[data-layout="stacked"] .who { display: block; font-size: .72em; margin-bottom: .12em; }
+  #list[data-layout="stacked"] .said { display: block; }
+  #list[data-layout="stacked"] .name { margin-right: 0; }
+  #list[data-layout="card"] .msg { align-items: flex-start; padding: .6em .9em; gap: .7em; }
+  #list[data-layout="card"] .avatar { width: 2.5em; height: 2.5em; }
+  #list[data-layout="card"] .who { display: block; font-size: .8em; margin-bottom: .1em; }
+  #list[data-layout="card"] .said { display: block; }
+  #list[data-layout="card"] .name { margin-right: 0; }
+  #list[data-layout="chip"] .name { background: var(--name, #ffd54a); color: #111; padding: .06em .6em; border-radius: 99px; font-size: .82em; margin-right: .6em; }
+  #list[data-layout="compact"] .msg { padding: .15em .6em; gap: .4em; }
+  #list[data-layout="compact"] { gap: 3px; }
+  #list[data-layout="compact"] .avatar { width: 1.25em; height: 1.25em; }
+
+  /* highlighted comment */
+  #spot { position: absolute; left: 5%; right: 5%; display: grid; justify-items: center; pointer-events: none; }
+  #spot.top { top: 6%; }
+  #spot.center { top: 50%; transform: translateY(-50%); }
+  .spotcard { grid-area: 1 / 1; display: flex; align-items: center; gap: .7em; max-width: 100%; padding: .6em 1em; box-sizing: border-box; will-change: transform, opacity; }
+  .spotcard .avatar { width: 2.4em; height: 2.4em; }
+  .spotcard .name { display: block; font-size: .6em; margin: 0 0 .15em; opacity: .95; }
+  .spotcard .said { display: block; line-height: 1.25; overflow-wrap: anywhere; }
+  .spotcard .said img { height: 1.1em; vertical-align: middle; }
+  /* highlighter pen behind the spotlight text; wraps cleanly across lines */
+  .spotcard .said .mk { background: color-mix(in srgb, var(--name, #ffd54a) 42%, transparent); padding: .04em .3em; border-radius: .3em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .msg.spotted { outline: .1em solid var(--name, #ffd54a); outline-offset: .05em; }
+  /* paid comments and bot replies */
+  .amount { display: inline-block; font-size: .62em; font-weight: 800; padding: .15em .55em; border-radius: 99px; margin-right: .5em; color: #fff; vertical-align: middle; text-shadow: 0 1px 1px rgba(0,0,0,.35); }
+  .msg.super { border-left: .22em solid var(--paid, currentColor); }
+  .sticker { height: 3.2em; vertical-align: middle; margin-left: .4em; }
+  .msg.bot .name { font-style: italic; opacity: .85; }
+</style>
+<link rel="stylesheet" href="/overlay/widgets.css">
+<style id="custom"></style>
+</head>
+<body>
+<div id="spot" class="top"></div>
+<div id="list" class="bottom"></div>
+<script>
+let S = {}
+const list = document.getElementById('list')
+const spot = document.getElementById('spot')
+
+// ?static  = a preview in the admin: no live feed, and messages never fade out on their own
+// ?profile=Name  use a saved look (one per OBS scene)   ?show=chat,poll,...  render only some parts
+const params = new URLSearchParams(location.search)
+const STATIC = params.has('static')
+const PROFILE = params.get('profile') || ''
+const SHOW = new Set((params.get('show') || '').split(',').map((x) => x.trim()).filter(Boolean))
+const wants = (part) => !SHOW.size || SHOW.has(part)
+
+function hexToRgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
+function applyStyle(s) {
+  S = s
+  const r = document.documentElement.style
+  list.classList.toggle('top', s.position === 'top')
+  list.classList.toggle('bottom', s.position !== 'top')
+  list.dataset.layout = s.layout || 'inline'
+  list.style.fontSize = s.fontSize + 'px'
+  list.style.setProperty('--maxw', (s.boxWidth === 'full' ? 100 : s.maxWidth || 60) + '%') // longer comments wrap onto more lines
+  // boxes hug their text unless full width is chosen; align places them left, centre or right
+  list.style.alignItems = s.boxWidth === 'full' ? 'stretch' : { center: 'center', right: 'flex-end' }[s.align] || 'flex-start'
+  list.style.fontFamily = s.fontFamily
+  list.style.color = s.textColor
+  r.setProperty('--name', s.nameColor)
+  r.setProperty('--bg', hexToRgba(s.bgColor, s.bgOpacity / 100))
+  r.setProperty('--radius', s.radius + 'px')
+  spot.className = s.spotPosition === 'center' ? 'center' : 'top'
+  spot.style.fontSize = s.spotSize + 'px'
+  spot.style.fontFamily = s.fontFamily
+  spot.style.color = s.textColor
+  document.getElementById('custom').textContent =
+    `.msg,.spotcard{background:var(--bg);border-radius:var(--radius)}.name{color:var(--name)}` +
+    `.spotcard{border-left:.14em solid var(--name);box-shadow:0 10px 30px rgba(0,0,0,.4)}\n` + (s.customCss || '')
+  trim()
+}
+
+// ---- motion ----
+// Entering and leaving items grow and shrink their own height, so neighbours move smoothly
+// as part of normal layout. Nothing is repositioned by script, so nothing can snap.
+const GAP = 8 // matches #list gap
+const SPRING = 'cubic-bezier(.22,1.25,.36,1)' // slight overshoot
+const ENTER = {
+  slide: [{ opacity: 0, transform: 'translateY(32px) scale(.96)' }, { opacity: 1, transform: 'none' }],
+  pop:   [{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1)' }],
+  left:  [{ opacity: 0, transform: 'translateX(-90px)' }, { opacity: 1, transform: 'none' }],
+  right: [{ opacity: 0, transform: 'translateX(90px)' }, { opacity: 1, transform: 'none' }],
+  fade:  [{ opacity: 0 }, { opacity: 1 }],
+}
+const EXIT = {
+  slide: [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-24px) scale(.97)' }],
+  pop:   [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.4)' }],
+  left:  [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(-90px)' }],
+  right: [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(90px)' }],
+  fade:  [{ opacity: 1 }, { opacity: 0 }],
+}
+const gapGap = () => (list.dataset.layout === 'compact' ? 3 : GAP)
+const pinned = (el) => { // the item's real box, so animations start and end exactly on it
+  const cs = getComputedStyle(el)
+  return { height: el.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, marginBottom: cs.marginBottom }
+}
+const collapsed = () => ({ height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: `-${gapGap()}px`, marginBottom: '0px' })
+
+function enter(el) {
+  const frames = ENTER[S.animation]
+  if (!frames) return
+  const full = pinned(el)
+  el.style.overflow = 'hidden'
+  const grow = el.animate([collapsed(), full], { duration: 380, easing: 'cubic-bezier(.2,.8,.2,1)' })
+  grow.onfinish = grow.oncancel = () => { el.style.overflow = '' }
+  el.animate(frames, { duration: 550, easing: SPRING })
+}
+function leave(el, ms = 450) {
+  if (el.leaving) return
+  el.leaving = true
+  const frames = EXIT[S.animationOut]
+  if (!frames || !el.isConnected) return el.remove()
+  const full = pinned(el)
+  el.style.overflow = 'hidden'
+  el.animate(frames, { duration: ms, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' })
+  el.animate([full, collapsed()], { duration: ms, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => el.remove()
+}
+function trim() {
+  const live = [...list.children].filter((c) => !c.leaving)
+  live.slice(0, Math.max(0, live.length - S.maxMessages)).forEach((c) => leave(c, 300))
+}
+
+const LOGO = { // brand marks as inline SVG
+  youtube: '<svg class="logo" viewBox="0 0 28 20"><rect width="28" height="20" rx="5.5" fill="#f00"/><path d="M11 5.2v9.6l8.4-4.8z" fill="#fff"/></svg>',
+  facebook: '<svg class="logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#1877f2"/><path d="M16.67 15.47l.53-3.47h-3.33V9.75c0-.95.47-1.88 1.96-1.88h1.51V4.92s-1.37-.23-2.68-.23c-2.74 0-4.53 1.66-4.53 4.67V12H6.08v3.47h3.05V24h4.74v-8.53z" fill="#fff"/></svg>',
+}
+const ROLE_COLOR = { owner: '#ffd600', mod: '#7aa2ff', member: '#4cd964' }
+const PLATFORM_COLOR = { youtube: '#ff6b6b', facebook: '#6aa7ff' }
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e }
+
+function addMessage(m) {
+  const row = el('div', 'msg ' + m.platform + (m.money ? ' super' : ''))
+  row.dataset.id = m.id || ''
+  if (m.money?.color) row.style.setProperty('--paid', m.money.color)
+  if (S.showAvatar && m.avatar) row.append(avatarEl(m))
+
+  const body = el('div', 'body'), who = el('span', 'who'), said = el('span', 'said')
+  if (S.showPlatform && m.platform !== 'bot') who.append(...logoNodes(m.platform))
+  if (S.showBadges !== false && m.badge && m.platform !== 'bot') who.append(el('span', 'badge', '[' + m.badge + ']'))
+  if (m.money) who.append(amountEl(m.money))
+  if (S.showName !== false) {
+    const n = el('span', 'name', m.name)
+    const c = S.nameColorBy === 'role' ? ROLE_COLOR[m.badge] : S.nameColorBy === 'platform' ? PLATFORM_COLOR[m.platform] : ''
+    if (c) n.style.setProperty('--name', c)
+    who.append(n)
+  }
+  if (S.showTime) who.append(el('span', 'time', new Date(m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })))
+  said.append(...partNodes(m))
+  if (m.money?.sticker) { const i = el('img', 'sticker'); i.src = m.money.sticker; said.append(i) }
+  body.append(who, ' ', said)
+  row.append(body)
+
+  if (m.id && m.id === spotId && S.spotMark !== false) row.classList.add('spotted')
+  list.append(row)
+  if (!m.replay && !STATIC) enter(row)
+  trim()
+  if (S.fadeSeconds > 0 && !STATIC) setTimeout(() => leave(row), S.fadeSeconds * 1000)
+}
+function amountEl(money) {
+  const a = el('span', 'amount', money.text || '')
+  a.style.background = money.color || '#1e88e5'
+  return a
+}
+function avatarEl(m) { const a = el('img', 'avatar'); a.src = m.avatar; return a }
+function logoNodes(platform) { const t = el('span'); t.innerHTML = LOGO[platform] || ''; return t.childNodes }
+function partNodes(m) {
+  return m.parts.map((p) => {
+    if (p.img) { const i = document.createElement('img'); i.src = p.img; return i }
+    return document.createTextNode(p.text)
+  })
+}
+
+function removeMessage(id) {
+  for (const row of list.children) if (row.dataset.id === id) leave(row)
+}
+
+// ---- highlighted comment (spotlight) ----
+let spotEl = null
+function dropSpot(card) {
+  const frames = EXIT[S.animationOut]
+  if (!frames) return card.remove()
+  card.animate(frames, { duration: 400, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).onfinish = () => card.remove()
+}
+let spotId = ''
+function markSpotted() {
+  for (const row of list.children) row.classList.toggle('spotted', S.spotMark !== false && !!spotId && row.dataset.id === spotId)
+}
+function showSpot(m) {
+  if (spotEl) { dropSpot(spotEl); spotEl = null }
+  spotId = m?.id || ''
+  markSpotted()
+  if (!m) return
+  const card = el('div', 'spotcard ' + m.platform)
+  if (S.showAvatar && m.avatar) card.append(avatarEl(m))
+  const box = el('div'), who = el('span', 'name')
+  if (S.showPlatform) who.append(...logoNodes(m.platform))
+  if (m.money) who.append(amountEl(m.money))
+  who.append(document.createTextNode(m.name))
+  const said = el('div', 'said')
+  if (S.spotMark !== false) { const mk = el('span', 'mk'); mk.append(...partNodes(m)); said.append(mk) } else said.append(...partNodes(m))
+  box.append(who, said); card.append(box)
+  spot.append(card); spotEl = card
+  const anim = ENTER[S.animation]
+  if (anim) card.animate(anim, { duration: 550, easing: SPRING })
+}
+
+if (!wants('chat')) list.hidden = true
+if (!wants('spotlight')) spot.hidden = true
+
+let speakOn = false
+function speak(m) {
+  if (!speakOn || !m || !('speechSynthesis' in window)) return
+  speechSynthesis.cancel()
+  speechSynthesis.speak(new SpeechSynthesisUtterance(`${m.name} says: ${m.parts.map((p) => p.text || '').join('')}`))
+}
+
+if (!STATIC) {
+  // Handlers register first (here and in widgets.js); the stream opens on DOMContentLoaded, after every
+  // script has run, so the state the server sends on connect is never missed.
+  const handlers = {}
+  const on = (name, fn) => { (handlers[name] ||= []).push(fn) }
+  window.chatOverlay = { wants, on, get style() { return S } }
+
+  on('style', (d) => { if ((d.profile || '') === PROFILE) applyStyle(d.style) })
+  on('display', (d) => {
+    speakOn = !!d.speak
+    list.classList.toggle('chat-hidden', !!d.chatHidden) // "Hide chat" from the admin or a remote link
+  })
+  on('message', (m) => { if (wants('chat')) addMessage(m) })
+  on('clear', () => [...list.children].forEach((c) => leave(c, 300)))
+  on('remove', (d) => removeMessage(d.id))
+  on('highlight', (m) => { if (wants('spotlight')) showSpot(m); speak(m) })
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const es = new EventSource('/events' + (PROFILE ? '?profile=' + encodeURIComponent(PROFILE) : '')) // auto-reconnects
+    for (const name of ['style', 'display', 'message', 'clear', 'remove', 'highlight', 'widgets', 'widget', 'alert']) {
+      es.addEventListener(name, (e) => { const d = JSON.parse(e.data); (handlers[name] || []).forEach((fn) => fn(d)) })
+    }
+  })
+}
+</script>
+<script src="/overlay/widgets.js"></script>
+</body>
+</html>
