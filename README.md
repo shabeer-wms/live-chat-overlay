@@ -7,9 +7,9 @@ Download the build for your system from the GitHub Releases page (built by `.git
 
 | System | File |
 |---|---|
-| Windows | `ChatOverlay-…-win-x64.exe` (installer) or the portable `.exe` |
-| macOS | `ChatOverlay-…-mac-arm64.dmg` (Apple silicon) or `…-x64.dmg` (Intel) |
-| Linux | `ChatOverlay-…-linux-x64.AppImage` or `.deb` |
+| Windows | `ChatOverlay-Setup-<version>-win-x64.exe` (installer) or `ChatOverlay-<version>-win-x64-portable.exe` |
+| macOS | `ChatOverlay-<version>-mac-arm64.dmg` (Apple silicon) or `…-mac-x64.dmg` (Intel) |
+| Linux | `ChatOverlay-<version>-linux-x86_64.AppImage` or `ChatOverlay-<version>-linux-amd64.deb` |
 
 The builds are unsigned, so macOS and Windows warn on first launch. Steps for each system, headless/systemd mode and Docker are in [docs/INSTALL.md](docs/INSTALL.md). To publish a release, push a tag like `v1.0.0` ([docs/RELEASING.md](docs/RELEASING.md)).
 
